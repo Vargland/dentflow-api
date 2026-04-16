@@ -31,9 +31,21 @@ func (r *Repository) GetSettings(ctx context.Context, doctorID string) (db.UserS
 	return s, err
 }
 
-// UpsertSettings creates or updates the timezone setting for a doctor.
-func (r *Repository) UpsertSettings(ctx context.Context, doctorID, timezone string) (db.UserSettings, error) {
-	return r.q.UpsertUserSettings(ctx, doctorID, timezone)
+// UpsertSettings creates or updates the settings for a doctor.
+func (r *Repository) UpsertSettings(ctx context.Context, doctorID string, req UpdateSettingsRequest) (db.UserSettings, error) {
+	lang := req.EmailLanguage
+	if lang != "es" && lang != "en" {
+		lang = "es"
+	}
+
+	return r.q.UpsertUserSettings(ctx, db.UpsertUserSettingsParams{
+		DoctorID:      doctorID,
+		Timezone:      req.Timezone,
+		DoctorName:    req.DoctorName,
+		ClinicAddress: req.ClinicAddress,
+		ClinicPhone:   req.ClinicPhone,
+		EmailLanguage: lang,
+	})
 }
 
 // GetGoogleToken returns the stored Google token, or ErrNotFound.

@@ -10,7 +10,8 @@ import (
 )
 
 const getUserSettings = `
-SELECT doctor_id, timezone, created_at, updated_at FROM user_settings WHERE doctor_id = $1 LIMIT 1
+SELECT doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, created_at, updated_at
+FROM user_settings WHERE doctor_id = $1 LIMIT 1
 `
 
 // GetUserSettings fetches settings for a doctor, returning ErrNoRows if not found.
@@ -19,25 +20,50 @@ func (q *Queries) GetUserSettings(ctx context.Context, doctorID string) (UserSet
 
 	var s UserSettings
 
-	err := row.Scan(&s.DoctorID, &s.Timezone, &s.CreatedAt, &s.UpdatedAt)
+	err := row.Scan(
+		&s.DoctorID, &s.Timezone,
+		&s.DoctorName, &s.ClinicAddress, &s.ClinicPhone, &s.EmailLanguage,
+		&s.CreatedAt, &s.UpdatedAt,
+	)
 
 	return s, err
 }
 
 const upsertUserSettings = `
-INSERT INTO user_settings (doctor_id, timezone)
-VALUES ($1, $2)
-ON CONFLICT (doctor_id) DO UPDATE SET timezone = EXCLUDED.timezone
-RETURNING doctor_id, timezone, created_at, updated_at
+INSERT INTO user_settings (doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (doctor_id) DO UPDATE SET
+    timezone       = EXCLUDED.timezone,
+    doctor_name    = EXCLUDED.doctor_name,
+    clinic_address = EXCLUDED.clinic_address,
+    clinic_phone   = EXCLUDED.clinic_phone,
+    email_language = EXCLUDED.email_language
+RETURNING doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, created_at, updated_at
 `
 
+// UpsertUserSettingsParams holds the parameters for UpsertUserSettings.
+type UpsertUserSettingsParams struct {
+	DoctorID      string
+	Timezone      string
+	DoctorName    string
+	ClinicAddress string
+	ClinicPhone   string
+	EmailLanguage string
+}
+
 // UpsertUserSettings creates or updates user settings.
-func (q *Queries) UpsertUserSettings(ctx context.Context, doctorID, timezone string) (UserSettings, error) {
-	row := q.db.QueryRow(ctx, upsertUserSettings, doctorID, timezone)
+func (q *Queries) UpsertUserSettings(ctx context.Context, p UpsertUserSettingsParams) (UserSettings, error) {
+	row := q.db.QueryRow(ctx, upsertUserSettings,
+		p.DoctorID, p.Timezone, p.DoctorName, p.ClinicAddress, p.ClinicPhone, p.EmailLanguage,
+	)
 
 	var s UserSettings
 
-	err := row.Scan(&s.DoctorID, &s.Timezone, &s.CreatedAt, &s.UpdatedAt)
+	err := row.Scan(
+		&s.DoctorID, &s.Timezone,
+		&s.DoctorName, &s.ClinicAddress, &s.ClinicPhone, &s.EmailLanguage,
+		&s.CreatedAt, &s.UpdatedAt,
+	)
 
 	return s, err
 }

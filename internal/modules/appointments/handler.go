@@ -10,8 +10,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/jackc/pgx/v5"
 
 	db "github.com/psi-germanr/dentflow-api/internal/db/sqlc"
+	"github.com/psi-germanr/dentflow-api/internal/email"
 	"github.com/psi-germanr/dentflow-api/internal/gcal"
 	"github.com/psi-germanr/dentflow-api/internal/shared"
 )
@@ -118,6 +120,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// Best-effort Google Calendar sync (non-blocking)
 	go h.syncCreate(context.Background(), doctorID, appt)
 
+	// Best-effort patient email invite (non-blocking)
+	go h.sendInvite(context.Background(), doctorID, appt)
+
 	shared.JSON(w, http.StatusCreated, appt)
 }
 
@@ -211,6 +216,77 @@ func (h *Handler) syncCreate(ctx context.Context, doctorID string, appt Appointm
 
 	log.Printf("syncCreate: created event %s", eventID)
 	_ = h.repo.UpdateGoogleEventID(ctx, appt.ID, doctorID, &eventID)
+}
+
+func (h *Handler) sendInvite(ctx context.Context, doctorID string, appt AppointmentResponse) {
+	if appt.PatientID == nil {
+		return // no patient linked — nothing to send
+	}
+
+	// Fetch patient to get their email
+	patient, err := h.settingsQ.GetPatient(ctx, *appt.PatientID, doctorID)
+	if errors.Is(err, pgx.ErrNoRows) || err != nil {
+		log.Printf("sendInvite: could not fetch patient %s: %v", *appt.PatientID, err)
+		return
+	}
+
+	if patient.Email == nil || *patient.Email == "" {
+		log.Printf("sendInvite: patient %s has no email, skipping", *appt.PatientID)
+		return
+	}
+
+	// Fetch doctor settings for clinic profile
+	settings, err := h.settingsQ.GetUserSettings(ctx, doctorID)
+	if err != nil {
+		log.Printf("sendInvite: could not fetch settings for doctor %s: %v", doctorID, err)
+		return
+	}
+
+	timezone := settings.Timezone
+	if timezone == "" {
+		timezone = "America/Argentina/Buenos_Aires"
+	}
+
+	lang := settings.EmailLanguage
+	if lang == "" {
+		lang = "es"
+	}
+
+	// Convert UTC times to local for display
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		loc = time.UTC
+	}
+
+	localStart := appt.StartTime.In(loc)
+	localEnd := appt.EndTime.In(loc)
+
+	patientName := patient.Nombre
+	if patient.Apellido != "" {
+		patientName = patient.Nombre + " " + patient.Apellido
+	}
+
+	params := email.InviteParams{
+		PatientName:   patientName,
+		PatientEmail:  *patient.Email,
+		DoctorName:    settings.DoctorName,
+		ClinicAddress: settings.ClinicAddress,
+		ClinicPhone:   settings.ClinicPhone,
+		Title:         appt.Title,
+		StartTime:     localStart,
+		EndTime:       localEnd,
+		StartUTC:      appt.StartTime,
+		EndUTC:        appt.EndTime,
+		Duration:      appt.DurationMinutes,
+		Language:      lang,
+	}
+
+	if err := email.SendInvite(params); err != nil {
+		log.Printf("sendInvite: Resend error for patient %s: %v", *appt.PatientID, err)
+		return
+	}
+
+	log.Printf("sendInvite: invitation sent to %s for appointment %s", *patient.Email, appt.ID)
 }
 
 func (h *Handler) syncUpdate(ctx context.Context, doctorID string, appt AppointmentResponse, existing db.AppointmentRow) {

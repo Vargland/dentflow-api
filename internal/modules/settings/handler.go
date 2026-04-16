@@ -45,6 +45,7 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, ErrNotFound) {
 		shared.JSON(w, http.StatusOK, SettingsResponse{
 			Timezone:          "America/Argentina/Buenos_Aires",
+			EmailLanguage:     "es",
 			CalendarConnected: false,
 		})
 		return
@@ -56,6 +57,10 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 	resp := SettingsResponse{
 		Timezone:          s.Timezone,
+		DoctorName:        s.DoctorName,
+		ClinicAddress:     s.ClinicAddress,
+		ClinicPhone:       s.ClinicPhone,
+		EmailLanguage:     s.EmailLanguage,
 		CalendarConnected: false,
 	}
 
@@ -83,7 +88,7 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s, err := h.repo.UpsertSettings(r.Context(), doctorID, req.Timezone)
+	s, err := h.repo.UpsertSettings(r.Context(), doctorID, req)
 	if err != nil {
 		shared.InternalError(w)
 		return
@@ -91,6 +96,10 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 	resp := SettingsResponse{
 		Timezone:          s.Timezone,
+		DoctorName:        s.DoctorName,
+		ClinicAddress:     s.ClinicAddress,
+		ClinicPhone:       s.ClinicPhone,
+		EmailLanguage:     s.EmailLanguage,
 		CalendarConnected: false,
 	}
 
