@@ -3,6 +3,7 @@ package email
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strings"
@@ -38,11 +39,14 @@ type InviteParams struct {
 // Returns an error if the Resend API call fails.
 func SendInvite(p InviteParams) error {
 	apiKey := os.Getenv("RESEND_API_KEY")
+	from := os.Getenv("RESEND_FROM")
+
+	log.Printf("email.SendInvite: RESEND_API_KEY len=%d RESEND_FROM=%q", len(apiKey), from)
+
 	if apiKey == "" {
 		return fmt.Errorf("email.SendInvite: RESEND_API_KEY not set")
 	}
 
-	from := os.Getenv("RESEND_FROM")
 	if from == "" {
 		from = "onboarding@resend.dev"
 	}
