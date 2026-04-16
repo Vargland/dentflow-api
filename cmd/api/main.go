@@ -19,9 +19,11 @@ import (
 
 	db "github.com/psi-germanr/dentflow-api/internal/db/sqlc"
 	"github.com/psi-germanr/dentflow-api/internal/middleware"
+	"github.com/psi-germanr/dentflow-api/internal/modules/appointments"
 	"github.com/psi-germanr/dentflow-api/internal/modules/auth"
 	"github.com/psi-germanr/dentflow-api/internal/modules/evolutions"
 	"github.com/psi-germanr/dentflow-api/internal/modules/patients"
+	"github.com/psi-germanr/dentflow-api/internal/modules/settings"
 )
 
 func main() {
@@ -57,6 +59,12 @@ func main() {
 	evolutionRepo := evolutions.NewRepository(pool)
 	evolutionHandler := evolutions.NewHandler(evolutionRepo)
 
+	settingsRepo := settings.NewRepository(queries)
+	settingsHandler := settings.NewHandler(settingsRepo)
+
+	appointmentRepo := appointments.NewRepository(queries)
+	appointmentHandler := appointments.NewHandler(appointmentRepo, queries)
+
 	// Router
 	r := chi.NewRouter()
 
@@ -86,6 +94,14 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.Auth(authSecret))
 
+		// Settings (timezone + Google Calendar)
+		settingsHandler.RegisterProtectedRoutes(r)
+
+		// Appointments
+		r.Route("/appointments", func(r chi.Router) {
+			appointmentHandler.RegisterRoutes(r)
+		})
+
 		// Patients
 		r.Route("/patients", func(r chi.Router) {
 			patientHandler.RegisterRoutes(r)
@@ -96,6 +112,10 @@ func main() {
 			})
 		})
 	})
+
+	// Google Calendar OAuth — public routes (browser redirects, no bearer token)
+	r.Get("/auth/google/calendar", settingsHandler.StartCalendarOAuth)
+	r.Get("/auth/google/calendar/callback", settingsHandler.CalendarOAuthCallback)
 
 	// HTTP server with graceful shutdown
 	srv := &http.Server{

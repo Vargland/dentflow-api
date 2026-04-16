@@ -44,6 +44,42 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// Appointment represents a row in the appointments table.
+type Appointment struct {
+	ID              string     `json:"id"`
+	DoctorID        string     `json:"doctor_id"`
+	PatientID       *string    `json:"patient_id"`
+	GoogleEventID   *string    `json:"google_event_id"`
+	Title           string     `json:"title"`
+	StartTime       time.Time  `json:"start_time"`
+	EndTime         time.Time  `json:"end_time"`
+	DurationMinutes int        `json:"duration_minutes"`
+	Status          string     `json:"status"`
+	Notes           *string    `json:"notes"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+// GoogleToken represents a row in the google_tokens table.
+type GoogleToken struct {
+	ID           string    `json:"id"`
+	DoctorID     string    `json:"doctor_id"`
+	AccessToken  string    `json:"-"`
+	RefreshToken string    `json:"-"`
+	Expiry       time.Time `json:"expiry"`
+	CalendarID   string    `json:"calendar_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// UserSettings represents a row in the user_settings table.
+type UserSettings struct {
+	DoctorID  string    `json:"doctor_id"`
+	Timezone  string    `json:"timezone"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Evolution represents a row in the evolutions table.
 type Evolution struct {
 	ID          string          `json:"id"`
