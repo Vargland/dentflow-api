@@ -36,6 +36,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/{id}", h.Get)
 	r.Put("/{id}", h.Update)
 	r.Delete("/{id}", h.Delete)
+	r.Post("/{id}/send-invite", h.SendInvite)
 }
 
 // List handles GET /api/v1/appointments?start=...&end=...
@@ -90,6 +91,92 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shared.JSON(w, http.StatusOK, appt)
+}
+
+// SendInvite handles POST /api/v1/appointments/:id/send-invite
+// Sends (or resends) the email invitation to the linked patient.
+func (h *Handler) SendInvite(w http.ResponseWriter, r *http.Request) {
+	doctorID := shared.DoctorIDFromContext(r.Context())
+	id := chi.URLParam(r, "id")
+
+	appt, err := h.repo.Get(r.Context(), id, doctorID)
+	if errors.Is(err, ErrNotFound) {
+		shared.NotFound(w, "appointment")
+		return
+	}
+	if err != nil {
+		shared.InternalError(w)
+		return
+	}
+
+	if appt.PatientID == nil {
+		shared.ErrorResponse(w, http.StatusUnprocessableEntity, "NO_PATIENT", "appointment has no linked patient")
+		return
+	}
+
+	// Run synchronously so we can return a proper error to the UI
+	patient, err := h.settingsQ.GetPatient(r.Context(), *appt.PatientID, doctorID)
+	if err != nil {
+		shared.NotFound(w, "patient")
+		return
+	}
+
+	if patient.Email == nil || *patient.Email == "" {
+		shared.ErrorResponse(w, http.StatusUnprocessableEntity, "NO_EMAIL", "patient has no email address")
+		return
+	}
+
+	settings, err := h.settingsQ.GetUserSettings(r.Context(), doctorID)
+	if err != nil {
+		shared.InternalError(w)
+		return
+	}
+
+	timezone := settings.Timezone
+	if timezone == "" {
+		timezone = "America/Argentina/Buenos_Aires"
+	}
+
+	lang := settings.EmailLanguage
+	if lang == "" {
+		lang = "es"
+	}
+
+	loc, locErr := time.LoadLocation(timezone)
+	if locErr != nil {
+		loc = time.UTC
+	}
+
+	localStart := appt.StartTime.In(loc)
+	localEnd := appt.EndTime.In(loc)
+
+	patientName := patient.Nombre
+	if patient.Apellido != "" {
+		patientName = patient.Nombre + " " + patient.Apellido
+	}
+
+	params := email.InviteParams{
+		PatientName:   patientName,
+		PatientEmail:  *patient.Email,
+		DoctorName:    settings.DoctorName,
+		ClinicAddress: settings.ClinicAddress,
+		ClinicPhone:   settings.ClinicPhone,
+		Title:         appt.Title,
+		StartTime:     localStart,
+		EndTime:       localEnd,
+		StartUTC:      appt.StartTime,
+		EndUTC:        appt.EndTime,
+		Duration:      appt.DurationMinutes,
+		Language:      lang,
+	}
+
+	if err := email.SendInvite(params); err != nil {
+		log.Printf("SendInvite handler: Resend error: %v", err)
+		shared.ErrorResponse(w, http.StatusBadGateway, "EMAIL_FAILED", err.Error())
+		return
+	}
+
+	shared.JSON(w, http.StatusOK, map[string]string{"sent_to": *patient.Email})
 }
 
 // Create handles POST /api/v1/appointments
