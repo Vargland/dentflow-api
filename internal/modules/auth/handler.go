@@ -31,6 +31,71 @@ func NewHandler(repo *Repository) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/auth/register", h.Register)
 	r.Post("/auth/login", h.Login)
+	r.Post("/auth/google-login", h.GoogleLogin)
+}
+
+// GoogleLoginRequest is the body for POST /auth/google-login.
+type GoogleLoginRequest struct {
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	GoogleID string `json:"google_id"`
+}
+
+// GoogleLogin handles POST /auth/google-login.
+// Finds an existing user by email or creates one, then returns a JWT.
+func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	var req GoogleLoginRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		shared.BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+
+	if req.Email == "" {
+		shared.BadRequest(w, "email is required")
+		return
+	}
+
+	// Try to find existing user by email
+	user, err := h.repo.GetByEmail(r.Context(), req.Email)
+	if errors.Is(err, ErrNotFound) {
+		// User doesn't exist — create one with a random password (Google users won't use it)
+		randomHash, herr := bcrypt.GenerateFromPassword([]byte(req.GoogleID+req.Email), bcrypt.DefaultCost)
+		if herr != nil {
+			shared.InternalError(w)
+			return
+		}
+
+		name := req.Name
+		if name == "" {
+			name = req.Email
+		}
+
+		user, err = h.repo.Create(r.Context(), req.Email, name, string(randomHash))
+		if errors.Is(err, ErrEmailTaken) {
+			// Race condition — try fetching again
+			user, err = h.repo.GetByEmail(r.Context(), req.Email)
+		}
+	}
+
+	if err != nil {
+		shared.InternalError(w)
+		return
+	}
+
+	token, err := mintToken(user.ID, user.Email, user.Name)
+	if err != nil {
+		shared.InternalError(w)
+		return
+	}
+
+	shared.JSON(w, http.StatusOK, TokenResponse{
+		Token: token,
+		Name:  user.Name,
+		Email: user.Email,
+	})
 }
 
 // Register handles POST /auth/register.
