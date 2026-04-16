@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -180,13 +181,16 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) syncCreate(ctx context.Context, doctorID string, appt AppointmentResponse) {
 	tok, err := h.settingsQ.GetGoogleToken(ctx, doctorID)
 	if err != nil {
+		log.Printf("syncCreate: no google token for doctor %s: %v", doctorID, err)
 		return // Calendar not connected
 	}
+	log.Printf("syncCreate: found token for doctor %s, calendar %s", doctorID, tok.CalendarID)
 
 	timezone := h.getTimezone(ctx, doctorID)
 
 	svc, newTok, err := gcal.NewService(ctx, tok)
 	if err != nil {
+		log.Printf("syncCreate: NewService error: %v", err)
 		return
 	}
 
@@ -201,9 +205,11 @@ func (h *Handler) syncCreate(ctx context.Context, doctorID string, appt Appointm
 
 	eventID, err := gcal.CreateEvent(svc, tok.CalendarID, appt.Title, notes, timezone, appt.StartTime, appt.EndTime)
 	if err != nil {
+		log.Printf("syncCreate: CreateEvent error: %v", err)
 		return
 	}
 
+	log.Printf("syncCreate: created event %s", eventID)
 	_ = h.repo.UpdateGoogleEventID(ctx, appt.ID, doctorID, &eventID)
 }
 

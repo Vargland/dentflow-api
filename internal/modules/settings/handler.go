@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -129,12 +130,14 @@ func (h *Handler) CalendarOAuthCallback(w http.ResponseWriter, r *http.Request) 
 
 	tok, err := gcal.TokenFromCode(r.Context(), code)
 	if err != nil {
+		log.Printf("CalendarOAuthCallback: token exchange error: %v", err)
 		shared.ErrorResponse(w, http.StatusBadGateway, "OAUTH_FAILED", "failed to exchange code")
 		return
 	}
 
 	calEmail, err := fetchGoogleEmail(r.Context(), tok.AccessToken)
 	if err != nil {
+		log.Printf("CalendarOAuthCallback: fetchGoogleEmail error: %v", err)
 		calEmail = "primary"
 	}
 
@@ -155,6 +158,7 @@ func (h *Handler) CalendarOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		CalendarID:   calEmail,
 	})
 	if err != nil {
+		log.Printf("CalendarOAuthCallback: UpsertGoogleToken error: %v", err)
 		shared.InternalError(w)
 		return
 	}

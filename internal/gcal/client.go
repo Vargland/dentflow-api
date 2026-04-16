@@ -3,6 +3,7 @@ package gcal
 
 import (
 	"context"
+	"log"
 	"os"
 	"time"
 
@@ -42,6 +43,9 @@ func TokenFromCode(ctx context.Context, code string) (*oauth2.Token, error) {
 func NewService(ctx context.Context, tok db.GoogleToken) (*calendar.Service, *oauth2.Token, error) {
 	cfg := OAuthConfig()
 
+	log.Printf("gcal.NewService: clientID=%s hasSecret=%v hasRefresh=%v expiry=%v",
+		cfg.ClientID, cfg.ClientSecret != "", tok.RefreshToken != "", tok.Expiry)
+
 	oauthTok := &oauth2.Token{
 		AccessToken:  tok.AccessToken,
 		RefreshToken: tok.RefreshToken,
@@ -54,11 +58,15 @@ func NewService(ctx context.Context, tok db.GoogleToken) (*calendar.Service, *oa
 	// Trigger a refresh if needed and get the (possibly new) token
 	newTok, err := ts.Token()
 	if err != nil {
+		log.Printf("gcal.NewService: ts.Token() error: %v", err)
 		return nil, nil, err
 	}
 
+	log.Printf("gcal.NewService: got valid token, expiry=%v", newTok.Expiry)
+
 	svc, err := calendar.NewService(ctx, option.WithTokenSource(ts))
 	if err != nil {
+		log.Printf("gcal.NewService: calendar.NewService error: %v", err)
 		return nil, nil, err
 	}
 
@@ -72,6 +80,8 @@ func CreateEvent(svc *calendar.Service, calendarID, title, notes, timezone strin
 		description = "Turno creado desde DentFlow"
 	}
 
+	log.Printf("gcal.CreateEvent: calendarID=%s title=%s start=%v end=%v tz=%s", calendarID, title, start, end, timezone)
+
 	event := &calendar.Event{
 		Summary:     title,
 		Description: description,
@@ -82,9 +92,11 @@ func CreateEvent(svc *calendar.Service, calendarID, title, notes, timezone strin
 
 	created, err := svc.Events.Insert(calendarID, event).Do()
 	if err != nil {
+		log.Printf("gcal.CreateEvent: Insert error: %v", err)
 		return "", err
 	}
 
+	log.Printf("gcal.CreateEvent: success, eventID=%s", created.Id)
 	return created.Id, nil
 }
 
