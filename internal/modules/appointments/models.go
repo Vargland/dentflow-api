@@ -28,6 +28,8 @@ type CreateAppointmentRequest struct {
 	DurationMinutes int     `json:"duration_minutes"`
 	Status          string  `json:"status"`
 	Notes           *string `json:"notes"`
+	// AllowOverlap skips the overlap check — used for emergency over-bookings.
+	AllowOverlap bool `json:"allow_overlap"`
 }
 
 // UpdateAppointmentRequest is the body for PUT /api/v1/appointments/:id.
@@ -39,4 +41,6 @@ type UpdateAppointmentRequest struct {
 	DurationMinutes int     `json:"duration_minutes"`
 	Status          string  `json:"status"`
 	Notes           *string `json:"notes"`
+	// AllowOverlap skips the overlap check — used for emergency over-bookings.
+	AllowOverlap bool `json:"allow_overlap"`
 }

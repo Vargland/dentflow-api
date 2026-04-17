@@ -62,12 +62,14 @@ func (r *Repository) Create(ctx context.Context, doctorID string, req CreateAppo
 		return AppointmentResponse{}, fmt.Errorf("invalid time: %w", err)
 	}
 
-	n, err := r.q.CountOverlapping(ctx, doctorID, "", start, end)
-	if err != nil {
-		return AppointmentResponse{}, err
-	}
-	if n > 0 {
-		return AppointmentResponse{}, ErrOverlap
+	if !req.AllowOverlap {
+		n, err := r.q.CountOverlapping(ctx, doctorID, "", start, end)
+		if err != nil {
+			return AppointmentResponse{}, err
+		}
+		if n > 0 {
+			return AppointmentResponse{}, ErrOverlap
+		}
 	}
 
 	status := req.Status
@@ -100,12 +102,14 @@ func (r *Repository) Update(ctx context.Context, id, doctorID string, req Update
 		return AppointmentResponse{}, fmt.Errorf("invalid time: %w", err)
 	}
 
-	n, err := r.q.CountOverlapping(ctx, doctorID, id, start, end)
-	if err != nil {
-		return AppointmentResponse{}, err
-	}
-	if n > 0 {
-		return AppointmentResponse{}, ErrOverlap
+	if !req.AllowOverlap {
+		n, err := r.q.CountOverlapping(ctx, doctorID, id, start, end)
+		if err != nil {
+			return AppointmentResponse{}, err
+		}
+		if n > 0 {
+			return AppointmentResponse{}, ErrOverlap
+		}
 	}
 
 	// Preserve existing google_event_id
