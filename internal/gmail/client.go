@@ -4,17 +4,23 @@ package gmail
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 
 	"github.com/psi-germanr/dentflow-api/internal/gcal"
 	db "github.com/psi-germanr/dentflow-api/internal/db/sqlc"
 )
+
+// ErrInsufficientScope is returned when the stored token lacks the gmail.send scope.
+// The doctor must reconnect their Google account to grant the new permission.
+var ErrInsufficientScope = errors.New("gmail: insufficient OAuth scope — doctor must reconnect Google account")
 
 // RefreshedToken carries the possibly-updated token after a Gmail API call.
 type RefreshedToken struct {
@@ -57,6 +63,10 @@ func SendEmail(ctx context.Context, tok db.GoogleToken, to, subject, htmlBody st
 
 	msg := &gmail.Message{Raw: raw}
 	if _, err := svc.Users.Messages.Send("me", msg).Do(); err != nil {
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) && gErr.Code == 403 {
+			return refreshed, ErrInsufficientScope
+		}
 		log.Printf("gmail.SendEmail: send error to=%q: %v", to, err)
 		return refreshed, fmt.Errorf("gmail: send: %w", err)
 	}

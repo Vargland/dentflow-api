@@ -15,6 +15,7 @@ import (
 	db "github.com/psi-germanr/dentflow-api/internal/db/sqlc"
 	"github.com/psi-germanr/dentflow-api/internal/email"
 	"github.com/psi-germanr/dentflow-api/internal/gcal"
+	"github.com/psi-germanr/dentflow-api/internal/gmail"
 	"github.com/psi-germanr/dentflow-api/internal/shared"
 )
 
@@ -177,6 +178,10 @@ func (h *Handler) SendInvite(w http.ResponseWriter, r *http.Request) {
 
 	refreshed, err := email.SendInvite(r.Context(), tok, params)
 	if err != nil {
+		if errors.Is(err, gmail.ErrInsufficientScope) {
+			shared.ErrorResponse(w, http.StatusForbidden, "GMAIL_SCOPE_MISSING", "Google account requires reconnection to grant email permissions")
+			return
+		}
 		log.Printf("SendInvite handler: Gmail error: %v", err)
 		shared.ErrorResponse(w, http.StatusBadGateway, "EMAIL_FAILED", err.Error())
 		return
