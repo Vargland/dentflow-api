@@ -15,6 +15,7 @@ import (
 	db "github.com/psi-germanr/dentflow-api/internal/db/sqlc"
 	"github.com/psi-germanr/dentflow-api/internal/email"
 	"github.com/psi-germanr/dentflow-api/internal/gcal"
+	"github.com/psi-germanr/dentflow-api/internal/gmail"
 	"github.com/psi-germanr/dentflow-api/internal/shared"
 )
 
@@ -94,7 +95,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // SendInvite handles POST /api/v1/appointments/:id/send-invite
-// Sends (or resends) the email invitation to the linked patient.
+// Sends (or resends) the email invitation to the linked patient via the doctor's Gmail account.
 func (h *Handler) SendInvite(w http.ResponseWriter, r *http.Request) {
 	doctorID := shared.DoctorIDFromContext(r.Context())
 	id := chi.URLParam(r, "id")
@@ -114,7 +115,12 @@ func (h *Handler) SendInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Run synchronously so we can return a proper error to the UI
+	tok, err := h.settingsQ.GetGoogleToken(r.Context(), doctorID)
+	if err != nil {
+		shared.ErrorResponse(w, http.StatusUnprocessableEntity, "GMAIL_NOT_CONNECTED", "Google account not connected — connect it in Settings")
+		return
+	}
+
 	patient, err := h.settingsQ.GetPatient(r.Context(), *appt.PatientID, doctorID)
 	if err != nil {
 		shared.NotFound(w, "patient")
@@ -170,10 +176,19 @@ func (h *Handler) SendInvite(w http.ResponseWriter, r *http.Request) {
 		Language:      lang,
 	}
 
-	if err := email.SendInvite(params); err != nil {
-		log.Printf("SendInvite handler: Resend error: %v", err)
+	refreshed, err := email.SendInvite(r.Context(), tok, params)
+	if err != nil {
+		if errors.Is(err, gmail.ErrInsufficientScope) {
+			shared.ErrorResponse(w, http.StatusForbidden, "GMAIL_SCOPE_MISSING", "Google account requires reconnection to grant email permissions")
+			return
+		}
+		log.Printf("SendInvite handler: Gmail error: %v", err)
 		shared.ErrorResponse(w, http.StatusBadGateway, "EMAIL_FAILED", err.Error())
 		return
+	}
+
+	if refreshed.Changed {
+		h.persistRefreshedToken(r.Context(), doctorID, tok, refreshed.AccessToken, refreshed.Expiry)
 	}
 
 	shared.JSON(w, http.StatusOK, map[string]string{"sent_to": *patient.Email})
@@ -307,10 +322,15 @@ func (h *Handler) syncCreate(ctx context.Context, doctorID string, appt Appointm
 
 func (h *Handler) sendInvite(ctx context.Context, doctorID string, appt AppointmentResponse) {
 	if appt.PatientID == nil {
-		return // no patient linked — nothing to send
+		return
 	}
 
-	// Fetch patient to get their email
+	tok, err := h.settingsQ.GetGoogleToken(ctx, doctorID)
+	if err != nil {
+		log.Printf("sendInvite: no google token for doctor %s, skipping email", doctorID)
+		return
+	}
+
 	patient, err := h.settingsQ.GetPatient(ctx, *appt.PatientID, doctorID)
 	if errors.Is(err, pgx.ErrNoRows) || err != nil {
 		log.Printf("sendInvite: could not fetch patient %s: %v", *appt.PatientID, err)
@@ -322,7 +342,6 @@ func (h *Handler) sendInvite(ctx context.Context, doctorID string, appt Appointm
 		return
 	}
 
-	// Fetch doctor settings for clinic profile
 	settings, err := h.settingsQ.GetUserSettings(ctx, doctorID)
 	if err != nil {
 		log.Printf("sendInvite: could not fetch settings for doctor %s: %v", doctorID, err)
@@ -339,7 +358,6 @@ func (h *Handler) sendInvite(ctx context.Context, doctorID string, appt Appointm
 		lang = "es"
 	}
 
-	// Convert UTC times to local for display
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		loc = time.UTC
@@ -368,9 +386,14 @@ func (h *Handler) sendInvite(ctx context.Context, doctorID string, appt Appointm
 		Language:      lang,
 	}
 
-	if err := email.SendInvite(params); err != nil {
-		log.Printf("sendInvite: Resend error for patient %s: %v", *appt.PatientID, err)
+	refreshed, err := email.SendInvite(ctx, tok, params)
+	if err != nil {
+		log.Printf("sendInvite: Gmail error for patient %s: %v", *appt.PatientID, err)
 		return
+	}
+
+	if refreshed.Changed {
+		h.persistRefreshedToken(ctx, doctorID, tok, refreshed.AccessToken, refreshed.Expiry)
 	}
 
 	log.Printf("sendInvite: invitation sent to %s for appointment %s", *patient.Email, appt.ID)

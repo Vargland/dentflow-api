@@ -1,82 +1,52 @@
-// Package email provides transactional email sending via Resend.
+// Package email provides appointment invitation emails sent via the doctor's Gmail account.
 package email
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/resend/resend-go/v2"
+	db "github.com/psi-germanr/dentflow-api/internal/db/sqlc"
+	"github.com/psi-germanr/dentflow-api/internal/gmail"
 )
 
 // InviteParams holds all data needed to send an appointment invitation.
 type InviteParams struct {
-	// Patient info
 	PatientName  string
 	PatientEmail string
 
-	// Doctor / clinic info
 	DoctorName    string
 	ClinicAddress string
 	ClinicPhone   string
 
-	// Appointment info
 	Title     string
-	StartTime time.Time // in doctor's local timezone
-	EndTime   time.Time // in doctor's local timezone
-	StartUTC  time.Time // UTC — for GCal link
-	EndUTC    time.Time // UTC — for GCal link
-	Duration  int       // minutes
+	StartTime time.Time
+	EndTime   time.Time
+	StartUTC  time.Time
+	EndUTC    time.Time
+	Duration  int
 
 	// Language: "es" | "en"
 	Language string
 }
 
-// SendInvite sends an appointment invitation email to the patient.
-// Returns an error if the Resend API call fails.
-func SendInvite(p InviteParams) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
-	from := os.Getenv("RESEND_FROM")
-
-	log.Printf("email.SendInvite: RESEND_API_KEY len=%d RESEND_FROM=%q", len(apiKey), from)
-
-	if apiKey == "" {
-		return fmt.Errorf("email.SendInvite: RESEND_API_KEY not set")
-	}
-
-	if from == "" {
-		from = "onboarding@resend.dev"
-	}
-
+// SendInvite sends an appointment invitation via the doctor's Gmail account.
+// Returns the (possibly refreshed) token so the caller can persist it.
+func SendInvite(ctx context.Context, tok db.GoogleToken, p InviteParams) (gmail.RefreshedToken, error) {
 	subject := buildSubject(p)
 	html := buildHTML(p)
-
-	client := resend.NewClient(apiKey)
-
-	params := &resend.SendEmailRequest{
-		From:    from,
-		To:      []string{p.PatientEmail},
-		Subject: subject,
-		Html:    html,
-	}
-
-	_, err := client.Emails.Send(params)
-
-	return err
+	return gmail.SendEmail(ctx, tok, p.PatientEmail, subject, html)
 }
 
 // ---------- content builders ----------
 
 func buildSubject(p InviteParams) string {
 	dateStr := formatDate(p.StartTime, p.Language)
-
 	if p.Language == "en" {
 		return fmt.Sprintf("Appointment confirmed — %s", dateStr)
 	}
-
 	return fmt.Sprintf("Turno confirmado — %s", dateStr)
 }
 
@@ -117,7 +87,6 @@ func buildHTML(p InviteParams) string {
 	}
 
 	var rows strings.Builder
-
 	rows.WriteString(tableRow(professional, p.DoctorName))
 	if p.ClinicAddress != "" {
 		rows.WriteString(tableRow(address, p.ClinicAddress))
@@ -208,7 +177,6 @@ func tableRow(label, value string) string {
 }
 
 func buildGCalURL(p InviteParams) string {
-	// Google Calendar uses compact UTC format: 20250418T130000Z
 	const gcalFmt = "20060102T150405Z"
 
 	startStr := p.StartUTC.UTC().Format(gcalFmt)
@@ -234,13 +202,11 @@ func buildGCalURL(p InviteParams) string {
 	return "https://www.google.com/calendar/render?" + params.Encode()
 }
 
-// formatDate formats a time.Time for display in the given language.
 func formatDate(t time.Time, lang string) string {
 	if lang == "en" {
 		return t.Format("Monday, January 2, 2006")
 	}
 
-	// Spanish — manual map for locale
 	days := []string{"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"}
 	months := []string{"enero", "febrero", "marzo", "abril", "mayo", "junio",
 		"julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"}
