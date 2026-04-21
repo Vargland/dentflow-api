@@ -24,6 +24,7 @@ func OAuthConfig() *oauth2.Config {
 		Scopes: []string{
 			calendar.CalendarEventsScope,
 			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/gmail.send",
 		},
 		Endpoint: google.Endpoint,
 	}
