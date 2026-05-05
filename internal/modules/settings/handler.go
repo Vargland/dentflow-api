@@ -46,6 +46,7 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 		shared.JSON(w, http.StatusOK, SettingsResponse{
 			Timezone:          "America/Argentina/Buenos_Aires",
 			EmailLanguage:     "es",
+			AnnotationScheme:  "international",
 			CalendarConnected: false,
 		})
 		return
@@ -61,6 +62,7 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 		ClinicAddress:     s.ClinicAddress,
 		ClinicPhone:       s.ClinicPhone,
 		EmailLanguage:     s.EmailLanguage,
+		AnnotationScheme:  s.AnnotationScheme,
 		CalendarConnected: false,
 	}
 
@@ -100,6 +102,7 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		ClinicAddress:     s.ClinicAddress,
 		ClinicPhone:       s.ClinicPhone,
 		EmailLanguage:     s.EmailLanguage,
+		AnnotationScheme:  s.AnnotationScheme,
 		CalendarConnected: false,
 	}
 

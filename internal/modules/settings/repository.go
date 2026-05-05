@@ -38,13 +38,19 @@ func (r *Repository) UpsertSettings(ctx context.Context, doctorID string, req Up
 		lang = "es"
 	}
 
+	scheme := req.AnnotationScheme
+	if scheme != "international" && scheme != "argentina" {
+		scheme = "international"
+	}
+
 	return r.q.UpsertUserSettings(ctx, db.UpsertUserSettingsParams{
-		DoctorID:      doctorID,
-		Timezone:      req.Timezone,
-		DoctorName:    req.DoctorName,
-		ClinicAddress: req.ClinicAddress,
-		ClinicPhone:   req.ClinicPhone,
-		EmailLanguage: lang,
+		DoctorID:         doctorID,
+		Timezone:         req.Timezone,
+		DoctorName:       req.DoctorName,
+		ClinicAddress:    req.ClinicAddress,
+		ClinicPhone:      req.ClinicPhone,
+		EmailLanguage:    lang,
+		AnnotationScheme: scheme,
 	})
 }
 

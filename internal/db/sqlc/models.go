@@ -74,14 +74,15 @@ type GoogleToken struct {
 
 // UserSettings represents a row in the user_settings table.
 type UserSettings struct {
-	DoctorID      string    `json:"doctor_id"`
-	Timezone      string    `json:"timezone"`
-	DoctorName    string    `json:"doctor_name"`
-	ClinicAddress string    `json:"clinic_address"`
-	ClinicPhone   string    `json:"clinic_phone"`
-	EmailLanguage string    `json:"email_language"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	DoctorID         string    `json:"doctor_id"`
+	Timezone         string    `json:"timezone"`
+	DoctorName       string    `json:"doctor_name"`
+	ClinicAddress    string    `json:"clinic_address"`
+	ClinicPhone      string    `json:"clinic_phone"`
+	EmailLanguage    string    `json:"email_language"`
+	AnnotationScheme string    `json:"annotation_scheme"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // Evolution represents a row in the evolutions table.
