@@ -65,7 +65,7 @@ func (q *Queries) ListPatients(ctx context.Context, doctorID string, query *stri
 const getPatient = `-- name: GetPatient :one
 SELECT id, doctor_id, nombre, apellido, dni, fecha_nacimiento, sexo,
        telefono, email, direccion, alergias, medicamentos,
-       antecedentes, obra_social, nro_afiliado, notas, odontograma,
+       antecedentes, obra_social, nro_afiliado, plan_number, notas, odontograma,
        created_at, updated_at
 FROM patients
 WHERE id = $1 AND doctor_id = $2
@@ -79,7 +79,7 @@ func (q *Queries) GetPatient(ctx context.Context, id, doctorID string) (Patient,
 		&p.ID, &p.DoctorID, &p.Nombre, &p.Apellido, &p.Dni,
 		&p.FechaNacimiento, &p.Sexo, &p.Telefono, &p.Email,
 		&p.Direccion, &p.Alergias, &p.Medicamentos, &p.Antecedentes,
-		&p.ObraSocial, &p.NroAfiliado, &p.Notas, &p.Odontograma,
+		&p.ObraSocial, &p.NroAfiliado, &p.PlanNumber, &p.Notas, &p.Odontograma,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
 	return p, err
@@ -101,6 +101,7 @@ type CreatePatientParams struct {
 	Antecedentes    *string    `json:"antecedentes"`
 	ObraSocial      *string    `json:"obra_social"`
 	NroAfiliado     *string    `json:"nro_afiliado"`
+	PlanNumber      *string    `json:"plan_number"`
 	Notas           *string    `json:"notas"`
 }
 
@@ -108,15 +109,15 @@ const createPatient = `-- name: CreatePatient :one
 INSERT INTO patients (
     doctor_id, nombre, apellido, dni, fecha_nacimiento, sexo,
     telefono, email, direccion, alergias, medicamentos,
-    antecedentes, obra_social, nro_afiliado, notas
+    antecedentes, obra_social, nro_afiliado, plan_number, notas
 ) VALUES (
     $1, $2, $3, $4, $5, $6,
     $7, $8, $9, $10, $11,
-    $12, $13, $14, $15
+    $12, $13, $14, $15, $16
 )
 RETURNING id, doctor_id, nombre, apellido, dni, fecha_nacimiento, sexo,
           telefono, email, direccion, alergias, medicamentos,
-          antecedentes, obra_social, nro_afiliado, notas, odontograma,
+          antecedentes, obra_social, nro_afiliado, plan_number, notas, odontograma,
           created_at, updated_at`
 
 // CreatePatient inserts a new patient record.
@@ -124,14 +125,14 @@ func (q *Queries) CreatePatient(ctx context.Context, p CreatePatientParams) (Pat
 	row := q.db.QueryRow(ctx, createPatient,
 		p.DoctorID, p.Nombre, p.Apellido, p.Dni, p.FechaNacimiento, p.Sexo,
 		p.Telefono, p.Email, p.Direccion, p.Alergias, p.Medicamentos,
-		p.Antecedentes, p.ObraSocial, p.NroAfiliado, p.Notas,
+		p.Antecedentes, p.ObraSocial, p.NroAfiliado, p.PlanNumber, p.Notas,
 	)
 	var out Patient
 	err := row.Scan(
 		&out.ID, &out.DoctorID, &out.Nombre, &out.Apellido, &out.Dni,
 		&out.FechaNacimiento, &out.Sexo, &out.Telefono, &out.Email,
 		&out.Direccion, &out.Alergias, &out.Medicamentos, &out.Antecedentes,
-		&out.ObraSocial, &out.NroAfiliado, &out.Notas, &out.Odontograma,
+		&out.ObraSocial, &out.NroAfiliado, &out.PlanNumber, &out.Notas, &out.Odontograma,
 		&out.CreatedAt, &out.UpdatedAt,
 	)
 	return out, err
@@ -154,6 +155,7 @@ type UpdatePatientParams struct {
 	Antecedentes    *string    `json:"antecedentes"`
 	ObraSocial      *string    `json:"obra_social"`
 	NroAfiliado     *string    `json:"nro_afiliado"`
+	PlanNumber      *string    `json:"plan_number"`
 	Notas           *string    `json:"notas"`
 }
 
@@ -172,11 +174,12 @@ UPDATE patients SET
     antecedentes     = COALESCE($13, antecedentes),
     obra_social      = COALESCE($14, obra_social),
     nro_afiliado     = COALESCE($15, nro_afiliado),
-    notas            = COALESCE($16, notas)
+    plan_number      = COALESCE($16, plan_number),
+    notas            = COALESCE($17, notas)
 WHERE id = $1 AND doctor_id = $2
 RETURNING id, doctor_id, nombre, apellido, dni, fecha_nacimiento, sexo,
           telefono, email, direccion, alergias, medicamentos,
-          antecedentes, obra_social, nro_afiliado, notas, odontograma,
+          antecedentes, obra_social, nro_afiliado, plan_number, notas, odontograma,
           created_at, updated_at`
 
 // UpdatePatient updates an existing patient's fields (nil = keep existing).
@@ -185,14 +188,14 @@ func (q *Queries) UpdatePatient(ctx context.Context, p UpdatePatientParams) (Pat
 		p.ID, p.DoctorID,
 		p.Nombre, p.Apellido, p.Dni, p.FechaNacimiento, p.Sexo,
 		p.Telefono, p.Email, p.Direccion, p.Alergias, p.Medicamentos,
-		p.Antecedentes, p.ObraSocial, p.NroAfiliado, p.Notas,
+		p.Antecedentes, p.ObraSocial, p.NroAfiliado, p.PlanNumber, p.Notas,
 	)
 	var out Patient
 	err := row.Scan(
 		&out.ID, &out.DoctorID, &out.Nombre, &out.Apellido, &out.Dni,
 		&out.FechaNacimiento, &out.Sexo, &out.Telefono, &out.Email,
 		&out.Direccion, &out.Alergias, &out.Medicamentos, &out.Antecedentes,
-		&out.ObraSocial, &out.NroAfiliado, &out.Notas, &out.Odontograma,
+		&out.ObraSocial, &out.NroAfiliado, &out.PlanNumber, &out.Notas, &out.Odontograma,
 		&out.CreatedAt, &out.UpdatedAt,
 	)
 	return out, err

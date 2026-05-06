@@ -28,6 +28,7 @@ type Patient struct {
 	Antecedentes    *string          `json:"antecedentes"`
 	ObraSocial      *string          `json:"obra_social"`
 	NroAfiliado     *string          `json:"nro_afiliado"`
+	PlanNumber      *string          `json:"plan_number"`
 	Notas           *string          `json:"notas"`
 	Odontograma     json.RawMessage  `json:"odontograma"`
 	CreatedAt       time.Time        `json:"created_at"`
