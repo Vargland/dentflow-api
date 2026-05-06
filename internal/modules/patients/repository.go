@@ -85,6 +85,7 @@ func (r *Repository) Create(ctx context.Context, doctorID string, req CreatePati
 		Antecedentes:    req.Antecedentes,
 		ObraSocial:      req.ObraSocial,
 		NroAfiliado:     req.NroAfiliado,
+		PlanNumber:      req.PlanNumber,
 		Notas:           req.Notas,
 	})
 	if err != nil {
@@ -120,6 +121,7 @@ func (r *Repository) Update(ctx context.Context, id, doctorID string, req Update
 		Antecedentes:    req.Antecedentes,
 		ObraSocial:      req.ObraSocial,
 		NroAfiliado:     req.NroAfiliado,
+		PlanNumber:      req.PlanNumber,
 		Notas:           req.Notas,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -190,6 +192,7 @@ func toResponse(p db.Patient) PatientResponse {
 		Antecedentes:    p.Antecedentes,
 		ObraSocial:      p.ObraSocial,
 		NroAfiliado:     p.NroAfiliado,
+		PlanNumber:      p.PlanNumber,
 		Notas:           p.Notas,
 		Odontograma:     p.Odontograma,
 		CreatedAt:       p.CreatedAt,

@@ -27,11 +27,11 @@ LIMIT 1;
 INSERT INTO patients (
     doctor_id, nombre, apellido, dni, fecha_nacimiento, sexo,
     telefono, email, direccion, alergias, medicamentos,
-    antecedentes, obra_social, nro_afiliado, notas
+    antecedentes, obra_social, nro_afiliado, plan_number, notas
 ) VALUES (
     $1, $2, $3, $4, $5, $6,
     $7, $8, $9, $10, $11,
-    $12, $13, $14, $15
+    $12, $13, $14, $15, $16
 )
 RETURNING *;
 
@@ -50,6 +50,7 @@ UPDATE patients SET
     antecedentes     = COALESCE(sqlc.narg('antecedentes'),     antecedentes),
     obra_social      = COALESCE(sqlc.narg('obra_social'),      obra_social),
     nro_afiliado     = COALESCE(sqlc.narg('nro_afiliado'),     nro_afiliado),
+    plan_number      = COALESCE(sqlc.narg('plan_number'),      plan_number),
     notas            = COALESCE(sqlc.narg('notas'),            notas)
 WHERE id = sqlc.arg('id') AND doctor_id = sqlc.arg('doctor_id')
 RETURNING *;

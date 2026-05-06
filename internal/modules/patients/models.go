@@ -22,6 +22,7 @@ type PatientResponse struct {
 	Antecedentes    *string         `json:"antecedentes"`
 	ObraSocial      *string         `json:"obraSocial"`
 	NroAfiliado     *string         `json:"nroAfiliado"`
+	PlanNumber      *string         `json:"planNumber"`
 	Notas           *string         `json:"notas"`
 	Odontograma     json.RawMessage `json:"odontograma"`
 	CreatedAt       time.Time       `json:"createdAt"`
@@ -55,6 +56,7 @@ type CreatePatientRequest struct {
 	Antecedentes    *string `json:"antecedentes"`
 	ObraSocial      *string `json:"obraSocial"`
 	NroAfiliado     *string `json:"nroAfiliado"`
+	PlanNumber      *string `json:"planNumber"`
 	Notas           *string `json:"notas"`
 }
 
@@ -74,6 +76,7 @@ type UpdatePatientRequest struct {
 	Antecedentes    *string `json:"antecedentes"`
 	ObraSocial      *string `json:"obraSocial"`
 	NroAfiliado     *string `json:"nroAfiliado"`
+	PlanNumber      *string `json:"planNumber"`
 	Notas           *string `json:"notas"`
 }
 
