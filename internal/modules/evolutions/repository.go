@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -51,6 +52,7 @@ func (r *Repository) Create(ctx context.Context, patientID, doctorID string, req
 		Dientes:     dientes,
 		Importe:     float64ToNumeric(req.Importe),
 		Pagado:      req.Pagado,
+		Fecha:       parseOptionalDate(req.Fecha),
 	})
 	if err != nil {
 		return EvolutionResponse{}, err
@@ -66,6 +68,14 @@ func (r *Repository) Update(ctx context.Context, id, doctorID string, req Update
 		importePtr = &n
 	}
 
+	var fechaPtr *pgtype.Timestamptz
+	if req.Fecha != nil {
+		parsed := parseOptionalDate(req.Fecha)
+		if parsed.Valid {
+			fechaPtr = &parsed
+		}
+	}
+
 	e, err := r.q.UpdateEvolution(ctx, db.UpdateEvolutionParams{
 		ID:          id,
 		DoctorID:    doctorID,
@@ -73,6 +83,7 @@ func (r *Repository) Update(ctx context.Context, id, doctorID string, req Update
 		Dientes:     req.Dientes,
 		Importe:     importePtr,
 		Pagado:      req.Pagado,
+		Fecha:       fechaPtr,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return EvolutionResponse{}, ErrNotFound
@@ -111,6 +122,19 @@ func toResponse(e db.Evolution) EvolutionResponse {
 		Fecha:       e.Fecha,
 		CreatedAt:   e.CreatedAt,
 	}
+}
+
+// parseOptionalDate parses an optional ISO date string (YYYY-MM-DD) into a pgtype.Timestamptz.
+// Returns a zero-value (not valid) if str is nil or empty.
+func parseOptionalDate(str *string) pgtype.Timestamptz {
+	if str == nil || *str == "" {
+		return pgtype.Timestamptz{}
+	}
+	t, err := time.Parse("2006-01-02", *str)
+	if err != nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: t, Valid: true}
 }
 
 // float64ToNumeric converts a *float64 to pgtype.Numeric.

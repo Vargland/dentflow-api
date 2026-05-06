@@ -21,6 +21,7 @@ type CreateEvolutionRequest struct {
 	Dientes     []int32  `json:"dientes"`
 	Importe     *float64 `json:"importe"`
 	Pagado      bool     `json:"pagado"`
+	Fecha       *string  `json:"fecha"` // optional ISO date e.g. "2026-05-06"
 }
 
 // UpdateEvolutionRequest is the request body for PUT /patients/:id/evolutions/:eid.
@@ -29,4 +30,5 @@ type UpdateEvolutionRequest struct {
 	Dientes     []int32  `json:"dientes"`
 	Importe     *float64 `json:"importe"`
 	Pagado      *bool    `json:"pagado"`
+	Fecha       *string  `json:"fecha"` // optional ISO date e.g. "2026-05-06"
 }

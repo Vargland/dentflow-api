@@ -10,24 +10,25 @@ import (
 
 // CreateEvolutionParams holds parameters for creating an evolution.
 type CreateEvolutionParams struct {
-	PatientID   string         `json:"patient_id"`
-	DoctorID    string         `json:"doctor_id"`
-	Descripcion string         `json:"descripcion"`
-	Dientes     []int32        `json:"dientes"`
-	Importe     pgtype.Numeric `json:"importe"`
-	Pagado      bool           `json:"pagado"`
+	PatientID   string             `json:"patient_id"`
+	DoctorID    string             `json:"doctor_id"`
+	Descripcion string             `json:"descripcion"`
+	Dientes     []int32            `json:"dientes"`
+	Importe     pgtype.Numeric     `json:"importe"`
+	Pagado      bool               `json:"pagado"`
+	Fecha       pgtype.Timestamptz `json:"fecha"`
 }
 
 const createEvolution = `-- name: CreateEvolution :one
 INSERT INTO evolutions (
-    patient_id, doctor_id, descripcion, dientes, importe, pagado
-) VALUES ($1, $2, $3, $4, $5, $6)
+    patient_id, doctor_id, descripcion, dientes, importe, pagado, fecha
+) VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, NOW()))
 RETURNING id, patient_id, doctor_id, descripcion, dientes, importe, pagado, fecha, created_at`
 
 // CreateEvolution inserts a new evolution record.
 func (q *Queries) CreateEvolution(ctx context.Context, p CreateEvolutionParams) (Evolution, error) {
 	row := q.db.QueryRow(ctx, createEvolution,
-		p.PatientID, p.DoctorID, p.Descripcion, p.Dientes, p.Importe, p.Pagado,
+		p.PatientID, p.DoctorID, p.Descripcion, p.Dientes, p.Importe, p.Pagado, p.Fecha,
 	)
 	var e Evolution
 	err := row.Scan(
@@ -67,12 +68,13 @@ func (q *Queries) ListEvolutions(ctx context.Context, patientID, doctorID string
 
 // UpdateEvolutionParams holds parameters for updating an evolution.
 type UpdateEvolutionParams struct {
-	ID          string          `json:"id"`
-	DoctorID    string          `json:"doctor_id"`
-	Descripcion *string         `json:"descripcion"`
-	Dientes     []int32         `json:"dientes"`
-	Importe     *pgtype.Numeric `json:"importe"`
-	Pagado      *bool           `json:"pagado"`
+	ID          string              `json:"id"`
+	DoctorID    string              `json:"doctor_id"`
+	Descripcion *string             `json:"descripcion"`
+	Dientes     []int32             `json:"dientes"`
+	Importe     *pgtype.Numeric     `json:"importe"`
+	Pagado      *bool               `json:"pagado"`
+	Fecha       *pgtype.Timestamptz `json:"fecha"`
 }
 
 const updateEvolution = `-- name: UpdateEvolution :one
@@ -80,14 +82,15 @@ UPDATE evolutions SET
     descripcion = COALESCE($3, descripcion),
     dientes     = COALESCE($4, dientes),
     importe     = COALESCE($5, importe),
-    pagado      = COALESCE($6, pagado)
+    pagado      = COALESCE($6, pagado),
+    fecha       = COALESCE($7, fecha)
 WHERE id = $1 AND doctor_id = $2
 RETURNING id, patient_id, doctor_id, descripcion, dientes, importe, pagado, fecha, created_at`
 
 // UpdateEvolution updates an existing evolution record.
 func (q *Queries) UpdateEvolution(ctx context.Context, p UpdateEvolutionParams) (Evolution, error) {
 	row := q.db.QueryRow(ctx, updateEvolution,
-		p.ID, p.DoctorID, p.Descripcion, p.Dientes, p.Importe, p.Pagado,
+		p.ID, p.DoctorID, p.Descripcion, p.Dientes, p.Importe, p.Pagado, p.Fecha,
 	)
 	var e Evolution
 	err := row.Scan(
