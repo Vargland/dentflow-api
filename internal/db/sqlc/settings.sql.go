@@ -10,7 +10,7 @@ import (
 )
 
 const getUserSettings = `
-SELECT doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, created_at, updated_at
+SELECT doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, annotation_scheme, created_at, updated_at
 FROM user_settings WHERE doctor_id = $1 LIMIT 1
 `
 
@@ -23,6 +23,7 @@ func (q *Queries) GetUserSettings(ctx context.Context, doctorID string) (UserSet
 	err := row.Scan(
 		&s.DoctorID, &s.Timezone,
 		&s.DoctorName, &s.ClinicAddress, &s.ClinicPhone, &s.EmailLanguage,
+		&s.AnnotationScheme,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 
@@ -30,31 +31,33 @@ func (q *Queries) GetUserSettings(ctx context.Context, doctorID string) (UserSet
 }
 
 const upsertUserSettings = `
-INSERT INTO user_settings (doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO user_settings (doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, annotation_scheme)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (doctor_id) DO UPDATE SET
-    timezone       = EXCLUDED.timezone,
-    doctor_name    = EXCLUDED.doctor_name,
-    clinic_address = EXCLUDED.clinic_address,
-    clinic_phone   = EXCLUDED.clinic_phone,
-    email_language = EXCLUDED.email_language
-RETURNING doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, created_at, updated_at
+    timezone          = EXCLUDED.timezone,
+    doctor_name       = EXCLUDED.doctor_name,
+    clinic_address    = EXCLUDED.clinic_address,
+    clinic_phone      = EXCLUDED.clinic_phone,
+    email_language    = EXCLUDED.email_language,
+    annotation_scheme = EXCLUDED.annotation_scheme
+RETURNING doctor_id, timezone, doctor_name, clinic_address, clinic_phone, email_language, annotation_scheme, created_at, updated_at
 `
 
 // UpsertUserSettingsParams holds the parameters for UpsertUserSettings.
 type UpsertUserSettingsParams struct {
-	DoctorID      string
-	Timezone      string
-	DoctorName    string
-	ClinicAddress string
-	ClinicPhone   string
-	EmailLanguage string
+	DoctorID         string
+	Timezone         string
+	DoctorName       string
+	ClinicAddress    string
+	ClinicPhone      string
+	EmailLanguage    string
+	AnnotationScheme string
 }
 
 // UpsertUserSettings creates or updates user settings.
 func (q *Queries) UpsertUserSettings(ctx context.Context, p UpsertUserSettingsParams) (UserSettings, error) {
 	row := q.db.QueryRow(ctx, upsertUserSettings,
-		p.DoctorID, p.Timezone, p.DoctorName, p.ClinicAddress, p.ClinicPhone, p.EmailLanguage,
+		p.DoctorID, p.Timezone, p.DoctorName, p.ClinicAddress, p.ClinicPhone, p.EmailLanguage, p.AnnotationScheme,
 	)
 
 	var s UserSettings
@@ -62,6 +65,7 @@ func (q *Queries) UpsertUserSettings(ctx context.Context, p UpsertUserSettingsPa
 	err := row.Scan(
 		&s.DoctorID, &s.Timezone,
 		&s.DoctorName, &s.ClinicAddress, &s.ClinicPhone, &s.EmailLanguage,
+		&s.AnnotationScheme,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 

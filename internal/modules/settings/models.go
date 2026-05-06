@@ -9,13 +9,15 @@ type SettingsResponse struct {
 	ClinicAddress     string `json:"clinicAddress"`
 	ClinicPhone       string `json:"clinicPhone"`
 	EmailLanguage     string `json:"emailLanguage"`
+	AnnotationScheme  string `json:"annotationScheme"`
 }
 
 // UpdateSettingsRequest is the body for PUT /api/v1/settings.
 type UpdateSettingsRequest struct {
-	Timezone      string `json:"timezone"`
-	DoctorName    string `json:"doctorName"`
-	ClinicAddress string `json:"clinicAddress"`
-	ClinicPhone   string `json:"clinicPhone"`
-	EmailLanguage string `json:"emailLanguage"`
+	Timezone         string `json:"timezone"`
+	DoctorName       string `json:"doctorName"`
+	ClinicAddress    string `json:"clinicAddress"`
+	ClinicPhone      string `json:"clinicPhone"`
+	EmailLanguage    string `json:"emailLanguage"`
+	AnnotationScheme string `json:"annotationScheme"`
 }
